@@ -16,22 +16,22 @@ namespace MultiDamageCalculator
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        private int calcoliInMemoria = 0;
+        private int calcsInMemory = 0;
 
-        public int CalcoliInMemoria
+        public int CalcsInMemory
         {
-            get => calcoliInMemoria;
+            get => calcsInMemory;
 
             set
             {
-                if(calcoliInMemoria == value)
+                if(calcsInMemory == value)
                 {
                     return;
                 }
 
-                calcoliInMemoria = value;
+                calcsInMemory = value;
 
-                OnPropertyChanged(nameof(CalcoliInMemoria));
+                OnPropertyChanged(nameof(CalcsInMemory));
             }
         }
     }

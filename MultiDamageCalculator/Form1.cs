@@ -15,18 +15,18 @@ namespace MultiDamageCalculator
     {
         public ViewModel ViewModel { get; set; }
 
-        public List<Calcolo> Calcoli { get; set; }
+        public List<Calculation> Calcs { get; set; }
 
-        public bool HaStampato { get; set; }
+        public bool DidPrint { get; set; }
 
         public MultiDamageCalculator()
         {
             InitializeComponent();
 
             ViewModel = new ViewModel();
-            Calcoli = new List<Calcolo>();
-            HaStampato = true;
-            labelMemoria.DataBindings.Add("Text", ViewModel, "calcoliInMemoria");
+            Calcs = new List<Calculation>();
+            DidPrint = true;
+            labelMemoria.DataBindings.Add("Text", ViewModel, "CalcsInMemory");
         }
 
         private void buttonPaste_Click(object sender, EventArgs e)
@@ -56,68 +56,65 @@ namespace MultiDamageCalculator
 
         private void buttonCalcola_Click(object sender, EventArgs e)
         {
-            Calcolo calcolo = new Calcolo();
+            Calculation calc = new Calculation();
 
-            int nAtk = listBox1.Items.Count;
+            int nAttacks = listBox1.Items.Count;
 
             if (int.TryParse(textBox1.Text, out int HPconverted) && HPconverted > 0)
             {
-                if(nAtk > 1)
+                if(nAttacks > 1)
                 {
-                    List<int> danniGiaCombinati = new List<int> { 0 };
-                    List<int> danniNuoviCombinati = new List<int>();
+                    List<int> previousRolls = new List<int> { 0 };
+                    List<int> finalRolls = new List<int>();
 
-                    for (int i = 0; i < nAtk; i++)
+                    for (int i = 0; i < nAttacks; i++)
                     {
-                        List<int> danniNuovi = new List<int>();
+                        List<int> rollsToSum = new List<int>();
 
-                        while (danniNuovi.Count == 0)
+                        string rolls = listBox1.Items[i].ToString().Trim(' ', '(', ')');
+
+                        foreach (string roll in rolls.Split(','))
                         {
-                            string damages = listBox1.Items[i].ToString().Replace(" ", "").Trim('(', ')');
-
-                            foreach (string damage in damages.Split(','))
+                            if (int.TryParse(roll.Trim(' '), out int convertedRoll) && convertedRoll > 0)
                             {
-                                if (int.TryParse(damage, out int damageConverted) && damageConverted > 0)
-                                {
-                                    danniNuovi.Add(damageConverted);
-                                }
-                            }
-
-                            if (danniNuovi.Count == 0)
-                            {
-                                const string text = "Almeno una lista di danni non è valida. Assicurati di inserire liste di numeri interi maggiori di zero separati tra loro da virgole, una lista per volta";
-                                const string caption = "Errore nei dati inseriti";
-                                _ = MessageBox.Show(text, caption,
-                                                    MessageBoxButtons.OK,
-                                                    MessageBoxIcon.Error);
-
-                                return;
+                                rollsToSum.Add(convertedRoll);
                             }
                         }
 
-                        calcolo.ListeDanni.Add(danniNuovi);
-
-                        danniNuoviCombinati.Clear();
-                        foreach (int x in danniGiaCombinati)
+                        if (rollsToSum.Count == 0)
                         {
-                            foreach (int y in danniNuovi)
+                            const string text = "Almeno una lista di danni non è valida. Assicurati di inserire liste di numeri interi maggiori di zero separati tra loro da virgole, una lista per volta";
+                            const string caption = "Errore nei dati inseriti";
+                            _ = MessageBox.Show(text, caption,
+                                                MessageBoxButtons.OK,
+                                                MessageBoxIcon.Error);
+
+                            return;
+                        }
+
+                        calc.ListAttackRolls.Add(rollsToSum);
+
+                        finalRolls.Clear();
+                        foreach (int x in previousRolls)
+                        {
+                            foreach (int y in rollsToSum)
                             {
-                                danniNuoviCombinati.Add(x + y);
+                                finalRolls.Add(x + y);
                             }
                         }
 
-                        danniGiaCombinati.Clear();
-                        foreach (int x in danniNuoviCombinati)
+                        previousRolls.Clear();
+                        foreach (int x in finalRolls)
                         {
-                            danniGiaCombinati.Add(x);
+                            previousRolls.Add(x);
                         }
                     }
 
-                    calcolo.HP = HPconverted;
-                    calcolo.ContatoreKO = danniNuoviCombinati.Where(x => x >= calcolo.HP).Count();
-                    calcolo.Totale = danniNuoviCombinati.Count;
+                    calc.HP = HPconverted;
+                    calc.KOcounter = finalRolls.Where(x => x >= calc.HP).Count();
+                    calc.Total = finalRolls.Count;
 
-                    if (calcolo.ContatoreKO == 0)
+                    if (calc.KOcounter == 0)
                     {
                         const string text = "Il Pokémon non va mai KO";
                         labelCalcoloBlando.Text = text;
@@ -130,7 +127,7 @@ namespace MultiDamageCalculator
                             labelCalcoloPreciso.Text = string.Empty;
                         }
                     }
-                    else if (calcolo.ContatoreKO == calcolo.Totale)
+                    else if (calc.KOcounter == calc.Total)
                     {
                         const string text = "Il Pokémon va KO sempre";
                         labelCalcoloBlando.Text = text;
@@ -145,23 +142,32 @@ namespace MultiDamageCalculator
                     }
                     else
                     {
-                        int mcd = Matematica.MCD(calcolo.ContatoreKO, calcolo.Totale);
-                        calcolo.ContatoreKOmin = calcolo.ContatoreKO / mcd;
-                        calcolo.TotaleMin = calcolo.Totale / mcd;
-                        calcolo.PercentualeKO = calcolo.ContatoreKOmin * 100.0 / calcolo.TotaleMin;
-                        string text1 = $"Il Pokémon va KO {calcolo.ContatoreKO} volte su {calcolo.Totale}";
-                        string text2 = $"Rapporto semplificato: {calcolo.ContatoreKOmin}/{calcolo.TotaleMin}";
-                        string text3 = $"In percentuale: {calcolo.PercentualeKO}%";
+                        if (calc.Total % calc.KOcounter == 0)
+                        {
+                            calc.SimplifiedKOcounter = 1;
+                            calc.SimplifiedTotal = calc.Total / calc.KOcounter;
+
+                        }
+                        else
+                        {
+                            int gcd = SimpleMath.GCD(calc.KOcounter, calc.Total);
+                            calc.SimplifiedKOcounter = calc.KOcounter / gcd;
+                            calc.SimplifiedTotal = calc.Total / gcd;
+                        }
+                        calc.KOpercentage = calc.SimplifiedKOcounter * 100.0 / calc.SimplifiedTotal;
+                        string text1 = $"Il Pokémon va KO {calc.KOcounter} volte su {calc.Total}";
+                        string text2 = $"Rapporto semplificato: {calc.SimplifiedKOcounter}/{calc.SimplifiedTotal}";
+                        string text3 = $"In percentuale: {calc.KOpercentage}%";
                         labelCalcoloBlando.Text = text1;
                         labelCalcoloMin.Text = text2;
                         labelCalcoloPreciso.Text = text3;
                     }
 
-                    Calcoli.Add(calcolo);
+                    Calcs.Add(calc);
 
-                    ViewModel.CalcoliInMemoria = Calcoli.Count;
+                    ViewModel.CalcsInMemory = Calcs.Count;
 
-                    HaStampato = false;
+                    DidPrint = false;
                 }
                 else
                 {
@@ -198,7 +204,7 @@ namespace MultiDamageCalculator
 
         private void buttonExport_Click(object sender, EventArgs e)
         {
-            if (Calcoli.Count > 0)
+            if (Calcs.Count > 0)
             {
                 string nomeFile = $"calc{DateTime.Today.ToString("ddMMyy")}{DateTime.Now.ToString("HHmmss")}.txt";
 
@@ -209,11 +215,11 @@ namespace MultiDamageCalculator
 
                 using (StreamWriter sw = File.CreateText(nomeFile))
                 {
-                    foreach (Calcolo calcolo in Calcoli)
+                    foreach (Calculation calcolo in Calcs)
                     {
                         sw.WriteLine($"HP: {calcolo.HP}");
 
-                        foreach (var lista in calcolo.ListeDanni)
+                        foreach (var lista in calcolo.ListAttackRolls)
                         {
                             sw.Write("(");
 
@@ -230,15 +236,15 @@ namespace MultiDamageCalculator
                             sw.WriteLine(")");
                         }
 
-                        sw.WriteLine($"KO {calcolo.ContatoreKO}/{calcolo.Totale} ({calcolo.ContatoreKOmin}/{calcolo.TotaleMin}), {calcolo.PercentualeKO}%\n");
+                        sw.WriteLine($"KO {calcolo.KOcounter}/{calcolo.Total} ({calcolo.SimplifiedKOcounter}/{calcolo.SimplifiedTotal}), {calcolo.KOpercentage}%\n");
                     }
                 }
 
-                Calcoli.Clear();
+                Calcs.Clear();
 
-                ViewModel.CalcoliInMemoria = Calcoli.Count;
+                ViewModel.CalcsInMemory = Calcs.Count;
 
-                HaStampato = true;
+                DidPrint = true;
 
                 string text = $"Nome del file: {nomeFile}";
                 const string caption = "Esportazione eseguita con successo";
@@ -258,7 +264,7 @@ namespace MultiDamageCalculator
 
         private void Calcolatore2danni_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (!HaStampato)
+            if (!DidPrint)
             {
                 const string text = "Non tutti i calcoli sono stati esportati. Sei sicuro di voler chiudere l'applicazione?";
                 const string caption = "Chiusura applicazione";
@@ -272,7 +278,7 @@ namespace MultiDamageCalculator
                 }
                 else
                 {
-                    Calcoli.Clear();
+                    Calcs.Clear();
                 }
             }
         }

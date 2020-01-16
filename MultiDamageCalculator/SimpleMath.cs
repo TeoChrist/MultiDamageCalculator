@@ -6,29 +6,29 @@ using System.Threading.Tasks;
 
 namespace MultiDamageCalculator
 {
-    public static class Matematica
+    public static class SimpleMath
     {
-        public static int MCD(int a, int b)
+        public static int GCD(int a, int b)
         {
-            List<int> da = Divisori(a);
-            List<int> db = Divisori(b);
+            List<int> da = Divisors(a);
+            List<int> db = Divisors(b);
 
             return da.Where(x => db.Contains(x)).Max();
         }
 
-        public static List<int> Divisori(int n)
+        public static List<int> Divisors(int n)
         {
-            List<int> l = new List<int>();
+            List<int> list = new List<int>();
 
             for (int i = (int)Math.Sqrt(n); i >= 1; i--)
             {
                 if (n % i == 0)
                 {
-                    l.Add(i);
+                    list.Add(i);
                 }
             }
 
-            return l;
+            return list;
         }
     }
 }
